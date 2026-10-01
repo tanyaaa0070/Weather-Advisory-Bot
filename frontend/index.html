@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Advisory Bot</title>
+    <meta name="description" content="Get safety advice for outdoor activities based on live weather data and written policies.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg-primary: #0f1117;
+            --bg-secondary: #1a1d27;
+            --bg-chat: #141620;
+            --bg-user-msg: #2563eb;
+            --bg-bot-msg: #1e2132;
+            --bg-input: #1a1d27;
+            --text-primary: #e8eaed;
+            --text-secondary: #9aa0ad;
+            --text-muted: #6b7280;
+            --accent: #3b82f6;
+            --accent-glow: rgba(59, 130, 246, 0.2);
+            --border: #2a2d3a;
+            --severity-critical: #ef4444;
+            --severity-high: #f97316;
+            --severity-moderate: #eab308;
+            --severity-low: #3b82f6;
+            --severity-info: #22c55e;
+            --radius: 12px;
+            --radius-sm: 8px;
+            --shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        html, body {
+            height: 100%;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow: hidden;
+        }
+
+        .app {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            max-width: 860px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-secondary);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-shrink: 0;
+        }
+
+        .header-icon {
+            width: 42px;
+            height: 42px;
+            background: linear-gradient(135deg, var(--accent), #818cf8);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            flex-shrink: 0;
+        }
+
+        .header-text h1 {
+            font-size: 17px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+
+        .header-text p {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        .header-actions {
+            margin-left: auto;
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-icon {
+            width: 36px;
+            height: 36px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-secondary);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: all 0.15s ease;
+        }
+
+        .btn-icon:hover {
+            background: var(--bg-chat);
+            color: var(--text-primary);
+            border-color: var(--accent);
+        }
+
+        /* Chat Area */
+        .chat-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            scroll-behavior: smooth;
+        }
+
+        .chat-area::-webkit-scrollbar { width: 6px; }
+        .chat-area::-webkit-scrollbar-track { background: transparent; }
+        .chat-area::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        /* Messages */
+        .message {
+            display: flex;
+            gap: 10px;
+            max-width: 85%;
+            animation: fadeIn 0.25s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .message.bot {
+            align-self: flex-start;
+        }
+
+        .msg-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .message.user .msg-avatar {
+            background: var(--bg-user-msg);
+        }
+
+        .message.bot .msg-avatar {
+            background: linear-gradient(135deg, #6366f1, #3b82f6);
+        }
+
+        .msg-content {
+            padding: 12px 16px;
+            border-radius: var(--radius);
+            line-height: 1.6;
+            font-size: 14px;
+        }
+
+        .message.user .msg-content {
+            background: var(--bg-user-msg);
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.bot .msg-content {
+            background: var(--bg-bot-msg);
+            border: 1px solid var(--border);
+            border-bottom-left-radius: 4px;
+        }
+
+        .msg-content p { margin-bottom: 8px; }
+        .msg-content p:last-child { margin-bottom: 0; }
+        .msg-content strong { color: #fff; font-weight: 600; }
+        .msg-content ul, .msg-content ol { margin: 8px 0; padding-left: 20px; }
+        .msg-content li { margin-bottom: 4px; }
+        .msg-content code {
+            background: rgba(255,255,255,0.08);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        /* SOP badges */
+        .sop-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .sop-badge {
+            font-size: 11px;
+            font-weight: 500;
+            padding: 3px 10px;
+            border-radius: 20px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            letter-spacing: 0.02em;
+        }
+
+        .sop-badge.critical { background: rgba(239,68,68,0.15); color: var(--severity-critical); border: 1px solid rgba(239,68,68,0.3); }
+        .sop-badge.high { background: rgba(249,115,22,0.15); color: var(--severity-high); border: 1px solid rgba(249,115,22,0.3); }
+        .sop-badge.moderate { background: rgba(234,179,8,0.15); color: var(--severity-moderate); border: 1px solid rgba(234,179,8,0.3); }
+        .sop-badge.low { background: rgba(59,130,246,0.15); color: var(--severity-low); border: 1px solid rgba(59,130,246,0.3); }
+        .sop-badge.info { background: rgba(34,197,94,0.15); color: var(--severity-info); border: 1px solid rgba(34,197,94,0.3); }
+
+        /* Typing indicator */
+        .typing-indicator {
+            display: flex;
+            gap: 5px;
+            padding: 8px 16px;
+            align-items: center;
+        }
+
+        .typing-dot {
+            width: 7px;
+            height: 7px;
+            background: var(--text-secondary);
+            border-radius: 50%;
+            animation: bounce 1.4s infinite;
+        }
+
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes bounce {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-6px); }
+        }
+
+        /* Welcome */
+        .welcome {
+            text-align: center;
+            padding: 60px 24px;
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        .welcome-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .welcome h2 {
+            font-size: 22px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .welcome p {
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.6;
+            max-width: 460px;
+            margin: 0 auto 24px;
+        }
+
+        .suggestions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .suggestion {
+            padding: 8px 16px;
+            background: var(--bg-bot-msg);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .suggestion:hover {
+            border-color: var(--accent);
+            color: var(--text-primary);
+            background: var(--accent-glow);
+        }
+
+        /* Input Area */
+        .input-area {
+            padding: 16px 24px 20px;
+            border-top: 1px solid var(--border);
+            background: var(--bg-secondary);
+            flex-shrink: 0;
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        #chat-input {
+            flex: 1;
+            padding: 12px 16px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text-primary);
+            font-size: 14px;
+            font-family: inherit;
+            resize: none;
+            min-height: 44px;
+            max-height: 120px;
+            line-height: 1.5;
+            outline: none;
+            transition: border-color 0.15s ease;
+        }
+
+        #chat-input::placeholder { color: var(--text-muted); }
+        #chat-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+
+        #send-btn {
+            width: 44px;
+            height: 44px;
+            background: var(--accent);
+            border: none;
+            border-radius: var(--radius);
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+            flex-shrink: 0;
+        }
+
+        #send-btn:hover { background: #2563eb; transform: scale(1.04); }
+        #send-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+        .input-hint {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 8px;
+            text-align: center;
+        }
+
+        @media (max-width: 600px) {
+            .chat-area { padding: 12px; }
+            .message { max-width: 92%; }
+            .header { padding: 12px 16px; }
+            .input-area { padding: 12px 16px 16px; }
+            .suggestions { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-icon">⛅</div>
+            <div class="header-text">
+                <h1>Weather Advisory Bot</h1>
+                <p>Outdoor safety advice backed by written policies &amp; live data</p>
+            </div>
+            <div class="header-actions">
+                <button class="btn-icon" id="clear-btn" title="New session">🗑️</button>
+            </div>
+        </div>
+
+        <!-- Chat -->
+        <div class="chat-area" id="chat-area">
+            <div class="welcome" id="welcome">
+                <div class="welcome-icon">🌦️</div>
+                <h2>How can I help you stay safe outdoors?</h2>
+                <p>
+                    Ask me about any outdoor activity — cycling, hiking, taking kids to the park,
+                    travelling — and I'll check live weather conditions against our safety policies
+                    to give you grounded advice.
+                </p>
+                <div class="suggestions">
+                    <button class="suggestion" onclick="useSuggestion(this)">Is it safe to cycle in Mumbai today?</button>
+                    <button class="suggestion" onclick="useSuggestion(this)">Should I take my kids to the park in Delhi?</button>
+                    <button class="suggestion" onclick="useSuggestion(this)">Is today a good day for a picnic in London?</button>
+                    <button class="suggestion" onclick="useSuggestion(this)">Can I go for a hike near Bhopal?</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Input -->
+        <div class="input-area">
+            <div class="input-wrapper">
+                <textarea id="chat-input"
+                          placeholder="Ask about outdoor activity safety..."
+                          rows="1"
+                          autofocus></textarea>
+                <button id="send-btn" title="Send">➤</button>
+            </div>
+            <div class="input-hint">
+                Advice is based on written safety policies (SOPs) and live weather data from Open-Meteo.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ---------------------------------------------------------------
+        // Session management
+        // ---------------------------------------------------------------
+        let sessionId = localStorage.getItem('weather_bot_session');
+        if (!sessionId) {
+            sessionId = crypto.randomUUID();
+            localStorage.setItem('weather_bot_session', sessionId);
+        }
+
+        const chatArea = document.getElementById('chat-area');
+        const chatInput = document.getElementById('chat-input');
+        const sendBtn = document.getElementById('send-btn');
+        const clearBtn = document.getElementById('clear-btn');
+        const welcome = document.getElementById('welcome');
+
+        let isLoading = false;
+
+        // ---------------------------------------------------------------
+        // Auto-resize textarea
+        // ---------------------------------------------------------------
+        chatInput.addEventListener('input', () => {
+            chatInput.style.height = 'auto';
+            chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
+        });
+
+        // ---------------------------------------------------------------
+        // Send message
+        // ---------------------------------------------------------------
+        async function sendMessage() {
+            const message = chatInput.value.trim();
+            if (!message || isLoading) return;
+
+            // Hide welcome
+            if (welcome) welcome.style.display = 'none';
+
+            // Add user message
+            appendMessage('user', message);
+            chatInput.value = '';
+            chatInput.style.height = 'auto';
+
+            // Show typing indicator
+            const typingEl = showTyping();
+            isLoading = true;
+            sendBtn.disabled = true;
+
+            try {
+                const res = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionId, message }),
+                });
+
+                if (!res.ok) throw new Error(`Server error: ${res.status}`);
+
+                const data = await res.json();
+                removeTyping(typingEl);
+                appendMessage('bot', data.response, data.matched_sops || []);
+            } catch (err) {
+                removeTyping(typingEl);
+                appendMessage('bot',
+                    'Sorry, I couldn\'t reach the server. Please check that the backend ' +
+                    'is running and try again.\n\nError: ' + err.message
+                );
+            } finally {
+                isLoading = false;
+                sendBtn.disabled = false;
+                chatInput.focus();
+            }
+        }
+
+        // ---------------------------------------------------------------
+        // DOM helpers
+        // ---------------------------------------------------------------
+        function appendMessage(role, text, sops = []) {
+            const msg = document.createElement('div');
+            msg.className = `message ${role}`;
+
+            const avatar = document.createElement('div');
+            avatar.className = 'msg-avatar';
+            avatar.textContent = role === 'user' ? '👤' : '🤖';
+
+            const content = document.createElement('div');
+            content.className = 'msg-content';
+            content.innerHTML = renderMarkdown(text);
+
+            // Add SOP badges for bot messages
+            if (role === 'bot' && sops.length > 0) {
+                const badges = document.createElement('div');
+                badges.className = 'sop-badges';
+                for (const sop of sops) {
+                    const badge = document.createElement('span');
+                    badge.className = `sop-badge ${sop.severity}`;
+                    badge.textContent = `${sop.id}: ${sop.name}`;
+                    badges.appendChild(badge);
+                }
+                content.appendChild(badges);
+            }
+
+            msg.appendChild(avatar);
+            msg.appendChild(content);
+            chatArea.appendChild(msg);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        function showTyping() {
+            const msg = document.createElement('div');
+            msg.className = 'message bot';
+            msg.id = 'typing-msg';
+
+            const avatar = document.createElement('div');
+            avatar.className = 'msg-avatar';
+            avatar.textContent = '🤖';
+
+            const content = document.createElement('div');
+            content.className = 'msg-content';
+            content.innerHTML = `
+                <div class="typing-indicator">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>
+            `;
+
+            msg.appendChild(avatar);
+            msg.appendChild(content);
+            chatArea.appendChild(msg);
+            chatArea.scrollTop = chatArea.scrollHeight;
+            return msg;
+        }
+
+        function removeTyping(el) {
+            if (el && el.parentNode) el.parentNode.removeChild(el);
+        }
+
+        function renderMarkdown(text) {
+            // Minimal markdown: bold, italic, newlines, bullets, code
+            return text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                .replace(/`(.+?)`/g, '<code>$1</code>')
+                .replace(/^[\s]*[-•]\s+(.+)$/gm, '<li>$1</li>')
+                .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
+                .replace(/\n{2,}/g, '</p><p>')
+                .replace(/\n/g, '<br>')
+                .replace(/^/, '<p>')
+                .replace(/$/, '</p>');
+        }
+
+        // ---------------------------------------------------------------
+        // Suggestion click
+        // ---------------------------------------------------------------
+        function useSuggestion(el) {
+            chatInput.value = el.textContent;
+            sendMessage();
+        }
+
+        // ---------------------------------------------------------------
+        // Clear session
+        // ---------------------------------------------------------------
+        clearBtn.addEventListener('click', async () => {
+            try {
+                await fetch(`/session/${sessionId}`, { method: 'DELETE' });
+            } catch (_) { /* ignore */ }
+
+            sessionId = crypto.randomUUID();
+            localStorage.setItem('weather_bot_session', sessionId);
+
+            // Clear chat UI
+            chatArea.innerHTML = '';
+            if (welcome) {
+                chatArea.appendChild(welcome);
+                welcome.style.display = '';
+            }
+        });
+
+        // ---------------------------------------------------------------
+        // Event listeners
+        // ---------------------------------------------------------------
+        sendBtn.addEventListener('click', sendMessage);
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>

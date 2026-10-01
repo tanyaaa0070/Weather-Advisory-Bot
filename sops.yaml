@@ -1,0 +1,454 @@
+# =============================================================================
+# WEATHER ADVISORY STANDARD OPERATING PROCEDURES (SOPs)
+# =============================================================================
+#
+# FORMAT RATIONALE:
+# YAML was chosen over JSON or a database because:
+#   1. Human-readable and editable by non-developers (policy team).
+#   2. Supports inline comments for documenting intent behind each rule.
+#   3. Easy to diff in version control when policies change.
+#   4. Parsed at runtime — no code changes needed to add/modify/remove SOPs.
+#
+# STRUCTURE:
+#   Each SOP defines:
+#     - id:         Unique identifier for traceability in bot responses.
+#     - name:       Human-readable policy name.
+#     - category:   Grouping for organizational clarity.
+#     - severity:   One of: critical, high, moderate, low, info.
+#     - activities: List of standardized activity tags this SOP applies to.
+#                   Use ["*"] to apply to ALL outdoor activities.
+#     - conditions: Weather parameter thresholds that trigger this SOP.
+#       - logic:    "all" (every check must pass) or "any" (at least one).
+#       - checks:   List of {parameter, operator, value} checks.
+#         - Operators: ">", ">=", "<", "<=", "==", "between"
+#         - "between" uses value: [min, max] (inclusive both ends).
+#     - guidance:   The exact advice text the bot must convey. The bot may
+#                   rephrase for natural language flow but must not alter
+#                   the substance or add advice beyond what's stated here.
+#
+# MULTIPLE SOP RESOLUTION:
+#   When multiple SOPs match the same query, ALL are surfaced to the user,
+#   sorted by severity (critical first). The highest-severity SOP leads the
+#   response; lower-severity SOPs appear as additional considerations.
+#   Rationale: For a safety-critical application, hiding a relevant warning
+#   because another warning is "more important" creates liability. The user
+#   should see the full picture.
+#
+# ADDING A NEW SOP:
+#   1. Add a new entry below with a unique id (e.g., SOP-EX-005).
+#   2. Define conditions using available weather parameters.
+#   3. Restart the server (SOPs are loaded at startup and cached).
+#      No code changes required.
+#
+# AVAILABLE WEATHER PARAMETERS (from Open-Meteo current= endpoint):
+#   temperature_2m, relative_humidity_2m, apparent_temperature,
+#   precipitation, precipitation_probability, rain, weather_code,
+#   wind_speed_10m, wind_gusts_10m, uv_index
+#
+# AVAILABLE DAILY PARAMETERS (checked if prefixed with "daily."):
+#   temperature_2m_max, temperature_2m_min, precipitation_sum,
+#   precipitation_probability_max, wind_speed_10m_max,
+#   wind_gusts_10m_max, uv_index_max
+# =============================================================================
+
+sops:
+
+  # ===========================================================================
+  # CATEGORY: OUTDOOR EXERCISE
+  # ===========================================================================
+
+  - id: "SOP-EX-001"
+    name: "Extreme UV Outdoor Exercise Warning"
+    category: "outdoor_exercise"
+    severity: "high"
+    activities:
+      - cycling
+      - running
+      - jogging
+      - hiking
+      - walking
+      - outdoor_exercise
+      - sports
+      - swimming
+    conditions:
+      logic: "all"
+      checks:
+        - parameter: "uv_index"
+          operator: ">="
+          value: 8
+    guidance: >
+      The UV index is at a very high level. Avoid prolonged unprotected outdoor
+      exercise between 11 AM and 4 PM. If you must exercise outdoors, apply
+      SPF 50+ sunscreen 20 minutes before going out, wear UV-protective clothing
+      and a wide-brimmed hat, and strongly consider rescheduling to early morning
+      (before 10 AM) or evening (after 5 PM).
+
+  - id: "SOP-EX-002"
+    name: "Extreme Heat Exercise Halt"
+    category: "outdoor_exercise"
+    severity: "critical"
+    activities:
+      - cycling
+      - running
+      - jogging
+      - hiking
+      - walking
+      - outdoor_exercise
+      - sports
+    conditions:
+      logic: "any"
+      checks:
+        - parameter: "temperature_2m"
+          operator: ">="
+          value: 42
+        - parameter: "apparent_temperature"
+          operator: ">="
+          value: 45
+    guidance: >
+      Temperatures are at extreme and dangerous levels. Do NOT engage in outdoor
+      exercise. The risk of heat stroke, heat exhaustion, and other heat-related
+      illness is very high. Stay indoors in air-conditioned spaces, hydrate
+      continuously, and reschedule all outdoor physical activity to another day
+      or to pre-dawn hours.
+
+  - id: "SOP-EX-003"
+    name: "High Wind Cycling and Two-Wheeler Safety Alert"
+    category: "outdoor_exercise"
+    severity: "high"
+    activities:
+      - cycling
+      - biking
+      - bike_ride
+      - two_wheeler
+      - motorcycle
+      - scooter
+    conditions:
+      logic: "any"
+      checks:
+        - parameter: "wind_speed_10m"
+          operator: ">"
+          value: 40
+        - parameter: "wind_gusts_10m"
+          operator: ">"
+          value: 55
+    guidance: >
+      Wind conditions are unsafe for cycling and two-wheeled vehicles. High winds
+      create serious stability risks — gusts can push riders into traffic or off
+      the road. This is a safety risk, not just a comfort issue. Use enclosed
+      transportation (car, bus, metro) or postpone your trip until winds subside.
+
+  - id: "SOP-EX-004"
+    name: "Moderate Heat Exercise Caution"
+    category: "outdoor_exercise"
+    severity: "moderate"
+    activities:
+      - cycling
+      - running
+      - jogging
+      - hiking
+      - walking
+      - outdoor_exercise
+      - sports
+    conditions:
+      logic: "all"
+      checks:
+        - parameter: "temperature_2m"
+          operator: ">="
+          value: 35
+        - parameter: "temperature_2m"
+          operator: "<"
+          value: 42
+    guidance: >
+      It is quite hot outside. Exercise with increased caution: reduce intensity
+      and duration, take breaks in shade every 15-20 minutes, hydrate frequently
+      (water every 15 minutes, not just when thirsty), and avoid peak sun hours
+      (11 AM to 4 PM). Watch for signs of heat exhaustion — dizziness, nausea,
+      excessive sweating, or rapid heartbeat — and stop immediately if they occur.
+
+  # ===========================================================================
+  # CATEGORY: TRAVEL & COMMUTE
+  # ===========================================================================
+
+  - id: "SOP-TR-001"
+    name: "Heavy Precipitation Travel Warning"
+    category: "travel"
+    severity: "high"
+    activities:
+      - travel
+      - commute
+      - driving
+      - road_trip
+      - flight
+    conditions:
+      logic: "all"
+      checks:
+        - parameter: "precipitation_probability"
+          operator: ">="
+          value: 70
+        - parameter: "precipitation"
+          operator: ">"
+          value: 2
+    guidance: >
+      Significant rainfall is occurring or highly likely. Road conditions may
+      deteriorate with reduced visibility and potential waterlogging. Allow
+      significantly extra travel time, check for flood and waterlogging alerts
+      on your route before departure, avoid low-lying roads and underpasses
+      prone to flooding, and keep headlights on. Consider postponing
+      non-essential travel.
+
+  - id: "SOP-TR-002"
+    name: "Moderate Rain Travel Advisory"
+    category: "travel"
+    severity: "low"
+    activities:
+      - travel
+      - commute
+      - driving
+      - road_trip
+    conditions:
+      logic: "all"
+      checks:
+        - parameter: "precipitation_probability"
+          operator: ">="
+          value: 50
+        - parameter: "precipitation_probability"
+          operator: "<"
+          value: 70
+    guidance: >
+      Rain is reasonably likely. Carry rain gear and an umbrella, drive
+      cautiously with headlights on, allow slightly extra travel time, and
+      check local traffic updates before departing. Roads may be slippery.
+
+  - id: "SOP-TR-003"
+    name: "Strong Wind Travel Caution"
+    category: "travel"
+    severity: "moderate"
+    activities:
+      - travel
+      - driving
+      - road_trip
+      - commute
+    conditions:
+      logic: "any"
+      checks:
+        - parameter: "wind_speed_10m"
+          operator: ">"
+          value: 30
+        - parameter: "wind_gusts_10m"
+          operator: ">"
+          value: 45
+    guidance: >
+      Elevated winds may affect vehicle handling, especially for high-profile
+      vehicles (SUVs, vans, trucks) and on bridges or open highways. Drive
+      with both hands on the wheel, reduce speed, maintain extra following
+      distance, and be alert for debris on roads. Two-wheelers should avoid
+      highways.
+
+  # ===========================================================================
+  # CATEGORY: VULNERABLE GROUPS (Children, Elderly, Pets)
+  # ===========================================================================
+
+  - id: "SOP-VG-001"
+    name: "Heat Advisory for Children and Elderly"
+    category: "vulnerable_groups"
+    severity: "high"
+    activities:
+      - park_visit
+      - playground
+      - outdoor_play
+      - walking
+      - outing
+      - children_activity
+      - elderly_activity
+      - leisure
+    conditions:
+      logic: "any"
+      checks:
+        - parameter: "temperature_2m"
+          operator: ">="
+          value: 37
+        - parameter: "apparent_temperature"
+          operator: ">="
+          value: 39
+    guidance: >
+      Outdoor conditions are unsafe for children under 5 and adults over 65,
+      who are more susceptible to heat-related illness. Keep vulnerable
+      individuals indoors in cooled spaces during peak heat (11 AM to 5 PM).
+      If any outdoor time is necessary, ensure constant shade, provide water
+      every 10 minutes, use cooling towels, and watch for signs of heat
+      exhaustion — confusion, cessation of sweating, rapid pulse. Seek medical
+      help immediately if symptoms appear.
+
+  - id: "SOP-VG-002"
+    name: "Cold Weather Pet Safety Advisory"
+    category: "vulnerable_groups"
+    severity: "moderate"
+    activities:
+      - pet_activity
+      - dog_walk
+      - walking_pets
+    conditions:
+      logic: "all"
+      checks:
+        - parameter: "temperature_2m"
+          operator: "<"
+          value: 5
+    guidance: >
+      It is too cold for extended outdoor time with pets, especially small breeds,
+      short-haired breeds, puppies, and senior dogs. Limit outdoor walks to
+      15-20 minutes maximum. Use pet jackets or sweaters, protect paws with
+      booties or paw wax (road salt and ice can cause injury), and dry your pet
+      thoroughly when returning indoors. Watch for signs of hypothermia —
+      shivering, lethargy, or whimpering.
+
+  - id: "SOP-VG-003"
+    name: "Oppressive Humidity Warning for Respiratory Sensitivity"
+    category: "vulnerable_groups"
+    severity: "moderate"
+    activities:
+      - outdoor_exercise
+      - walking
+      - park_visit
+      - leisure
+      - children_activity
+      - elderly_activity
+      - sports
+    conditions:
+      logic: "all"
+      checks:
+        - parameter: "relative_humidity_2m"
+          operator: ">"
+          value: 85
+        - parameter: "temperature_2m"
+          operator: ">"
+          value: 30
+    guidance: >
+      High humidity combined with heat creates oppressive conditions that
+      significantly stress the body's cooling mechanisms and can aggravate
+      respiratory conditions. Individuals with asthma, COPD, cardiovascular
+      conditions, or other respiratory sensitivities should remain in
+      air-conditioned environments. Healthy individuals should reduce outdoor
+      exertion intensity and take frequent indoor breaks.
+
+  # ===========================================================================
+  # CATEGORY: GENERAL OUTDOOR / RECREATION
+  # ===========================================================================
+
+  - id: "SOP-GN-001"
+    name: "Favorable Outdoor Leisure Conditions"
+    category: "general_outdoor"
+    severity: "info"
+    activities:
+      - picnic
+      - outdoor_dining
+      - park_visit
+      - leisure
+      - sightseeing
+      - gardening
+      - photography
+      - outdoor_event
+      - children_activity
+      - walking
+    # This is the "fuzzy/comfort" SOP. Rather than a single threshold,
+    # it checks that MULTIPLE comfort factors are ALL within pleasant ranges.
+    # There's no single number that makes a day "good for a picnic" — it's
+    # the combination of temperature, rain likelihood, wind, and sun exposure
+    # all being in a comfortable zone simultaneously.
+    conditions:
+      logic: "all"
+      checks:
+        - parameter: "temperature_2m"
+          operator: "between"
+          value: [15, 33]
+        - parameter: "precipitation_probability"
+          operator: "<"
+          value: 25
+        - parameter: "wind_speed_10m"
+          operator: "<"
+          value: 25
+        - parameter: "uv_index"
+          operator: "<"
+          value: 7
+    guidance: >
+      Weather conditions are favorable for outdoor leisure activities. Enjoy
+      your time outside! Even in pleasant conditions, basic precautions are
+      sensible: bring water to stay hydrated, apply sunscreen if you'll be
+      out for more than 30 minutes, and have a light layer in case conditions
+      change. Check back if your plans extend past a few hours, as weather
+      can shift.
+
+  - id: "SOP-GN-002"
+    name: "Severe Weather System Override"
+    category: "severe_weather"
+    severity: "critical"
+    # This SOP applies to ALL outdoor activities. When a severe weather
+    # system is active (heavy rain, dangerous winds, or both), category-
+    # specific advice is secondary — the overarching risk applies to
+    # everything. This is the SOP that catches low-pressure systems,
+    # cyclonic circulations, and similar large-scale events where the
+    # situational risk exceeds what individual thresholds might suggest.
+    activities:
+      - "*"
+    conditions:
+      logic: "any"
+      checks:
+        - parameter: "precipitation"
+          operator: ">="
+          value: 20
+        - parameter: "wind_speed_10m"
+          operator: ">="
+          value: 50
+        - parameter: "wind_gusts_10m"
+          operator: ">="
+          value: 70
+        - parameter: "daily.precipitation_sum"
+          operator: ">="
+          value: 65
+    guidance: >
+      A severe weather event is affecting your area with dangerous levels of
+      precipitation and/or wind. ALL outdoor activities carry significantly
+      elevated risk regardless of type. Postpone all non-essential outdoor
+      plans. Stay indoors, away from windows during high winds. Avoid
+      waterlogged roads, flooded underpasses, and any bodies of water.
+      Monitor local weather services and emergency announcements. If you
+      must travel, use only main roads and inform someone of your route
+      and expected arrival time.
+
+  - id: "SOP-GN-003"
+    name: "Marginal Outdoor Leisure Conditions"
+    category: "general_outdoor"
+    severity: "low"
+    activities:
+      - picnic
+      - outdoor_dining
+      - park_visit
+      - leisure
+      - sightseeing
+      - outdoor_event
+      - photography
+      - gardening
+    # Catches the gap between "favorable" and "dangerous" — conditions
+    # where the activity is possible but comfort is compromised. Uses
+    # "any" logic: if ANY single factor is in the marginal range, the
+    # overall experience may be less enjoyable.
+    conditions:
+      logic: "any"
+      checks:
+        - parameter: "temperature_2m"
+          operator: "between"
+          value: [33, 37]
+        - parameter: "precipitation_probability"
+          operator: "between"
+          value: [25, 60]
+        - parameter: "wind_speed_10m"
+          operator: "between"
+          value: [25, 40]
+        - parameter: "uv_index"
+          operator: "between"
+          value: [7, 8]
+    guidance: >
+      Outdoor conditions are possible but not ideal. You may experience
+      discomfort from one or more factors (heat, chance of rain, wind, or
+      strong sun). If you proceed, dress in layers, bring rain protection
+      and extra water, apply strong sunscreen, and have an indoor backup
+      plan ready. Consider shorter outdoor sessions with indoor breaks.
